@@ -1,0 +1,23 @@
+#!/usr/bin/python
+"""Launch the independent Shelf for Omarchy app."""
+import argparse
+import os
+from pathlib import Path
+import signal
+import sys
+
+parser = argparse.ArgumentParser(description='Shelf for Omarchy — independent, local clipboard history. No network.')
+parser.add_argument('--paused', action='store_true', help='start without reading or watching the clipboard; resume explicitly in the window')
+parser.add_argument('--data-dir', type=Path, default=Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share'))) / 'shelf-for-omarchy', help='private history directory (default: XDG_DATA_HOME/shelf-for-omarchy)')
+args = parser.parse_args()
+os.umask(0o077)
+from shelf_ui import ShelfApp
+from gi.repository import GLib
+app = ShelfApp(args.data_dir, paused=args.paused)
+# Ensure the watcher is stopped on ordinary process termination, too.
+GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, lambda: (app.quit(), False)[1])
+GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGINT, lambda: (app.quit(), False)[1])
+try:
+    sys.exit(app.run([sys.argv[0]]))
+finally:
+    app.shutdown_cleanly()
